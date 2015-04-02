@@ -99,7 +99,7 @@ dir_error dir_walk( const char* path, dir_walk_flags flags, dir_walk_callback ca
 }
 
 #else
-
+#include <stdio.h>
 static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
 	DIR* dir = opendir( path_buffer );
@@ -172,7 +172,7 @@ dir_error dir_create( const char* path )
 #endif
 	return DIR_ERROR_FAILED;
 }
-#include <stdio.h>
+
 static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata )
 {
 	switch( type )
