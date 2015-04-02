@@ -127,7 +127,7 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 		if( ent->d_type == DT_UNKNOWN )
 		{
 			struct stat s;
-			if( !stat( path_buffer, &s ) )
+			if( stat( path_buffer, &s ) != 0 )
 				return DIR_ERROR_FAILED;
 			is_dir = S_ISDIR( s.st_mode );
 		}
