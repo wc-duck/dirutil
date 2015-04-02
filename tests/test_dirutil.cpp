@@ -71,8 +71,6 @@ TEST create_remove_tree()
 	ASSERT( path_exists( "local/apa/bepa/cepa" ) );
 
 	err = dir_rmtree( "local/apa" );
-	if( err != DIR_ERROR_OK )
-		printf("%d\n", err);
 	ASSERT_EQ( DIR_ERROR_OK, err );
 	ASSERT( path_exists( "local" ) );
 	ASSERT( !path_exists( "local/apa" ) );

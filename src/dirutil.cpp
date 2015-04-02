@@ -170,7 +170,7 @@ dir_error dir_create( const char* path )
 #endif
 	return DIR_ERROR_FAILED;
 }
-
+#include <stdio.h>
 static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata )
 {
 	switch( type )
@@ -186,7 +186,10 @@ static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata
 			break;
 		case DIR_ITEM_DIR:
 			if( rmdir( path ) != 0 )
+			{
+				printf("failed to remove %s\n", path);
 				*((dir_error*)userdata) = DIR_ERROR_FAILED;
+			}
 			break;
 		default:
 			break;
