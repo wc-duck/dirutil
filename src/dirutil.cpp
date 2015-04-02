@@ -99,7 +99,7 @@ dir_error dir_walk( const char* path, dir_walk_flags flags, dir_walk_callback ca
 }
 
 #else
-#include <stdio.h>
+
 static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
 	DIR* dir = opendir( path_buffer );
@@ -110,9 +110,6 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 	while( ( ent = readdir( dir ) ) != 0x0 )
 	{
 		const char* item_name = ent->d_name;
-		bool is_dir = ent->d_type == DT_DIR;
-		if( ent->d_type == DT_UNKNOWN )
-			printf("unknown d_type!\n");
 
 		// TODO: flag to ignore dot-files?
 		if( strcmp( item_name, "." ) == 0 || strcmp( item_name, ".." ) == 0 )
@@ -125,6 +122,16 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 		// TODO: check for overflow!
 		path_buffer[path_len] = '/';
 		strcpy( &path_buffer[path_len + 1], item_name );
+
+		bool is_dir = ent->d_type == DT_DIR;
+		if( ent->d_type == DT_UNKNOWN )
+		{
+			struct stat s;
+			if( !stat( path_buffer, &s ) )
+				return DIR_ERROR_FAILED;
+			is_dir = S_ISDIR( s.st_mode );
+		}
+
 		if( is_dir )
 		{
 			if( flags & DIR_WALK_DEPTH_FIRST )
@@ -183,20 +190,12 @@ static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata
 					*((dir_error*)userdata) = DIR_ERROR_FAILED;
 			#else
 				if( unlink( path ) != 0 )
-				{
-					printf("failed to remove file %s\n", path);
-					perror("hmm?\n");
 					*((dir_error*)userdata) = DIR_ERROR_FAILED;
-				}
 			#endif
 			break;
 		case DIR_ITEM_DIR:
 			if( rmdir( path ) != 0 )
-			{
-				printf("failed to remove %s\n", path);
-				perror("hmm?\n");
 				*((dir_error*)userdata) = DIR_ERROR_FAILED;
-			}
 			break;
 		default:
 			break;
@@ -212,11 +211,7 @@ dir_error dir_rmtree( const char* path )
 		return e;
 	if( res != DIR_ERROR_OK )
 		return res;
-	if( rmdir( path ) == 0 )
-		return DIR_ERROR_OK;
-	printf("failed to remove %s\n", path);
-	perror("hmm?\n");
-	return DIR_ERROR_FAILED;
+	return rmdir( path ) == 0 ? DIR_ERROR_OK : DIR_ERROR_FAILED;
 }
 
 dir_error dir_mktree( const char* path )
