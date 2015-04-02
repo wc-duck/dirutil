@@ -10,5 +10,7 @@ install:
   - cd ..
 
 script:
+  - rm -rf local/apa
   - bam/bam compiler=$CC config=debug -r sc test
+  - rm -rf local/apa
   - bam/bam compiler=$CC config=release -r sc test
