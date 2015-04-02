@@ -111,6 +111,8 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 	{
 		const char* item_name = ent->d_name;
 		bool is_dir = ent->d_type == DT_DIR;
+		if( ent->d_type == DT_UNKNOWN )
+			printf("unknown d_type!\n");
 
 		// TODO: flag to ignore dot-files?
 		if( strcmp( item_name, "." ) == 0 || strcmp( item_name, ".." ) == 0 )
