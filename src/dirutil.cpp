@@ -181,7 +181,10 @@ static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata
 					*((dir_error*)userdata) = DIR_ERROR_FAILED;
 			#else
 				if( unlink( path ) != 0 )
+				{
+					printf("failed to remove file %s\n", path);
 					*((dir_error*)userdata) = DIR_ERROR_FAILED;
+				}
 			#endif
 			break;
 		case DIR_ITEM_DIR:
@@ -205,7 +208,10 @@ dir_error dir_rmtree( const char* path )
 		return e;
 	if( res != DIR_ERROR_OK )
 		return res;
-	return rmdir( path ) == 0 ? DIR_ERROR_OK : DIR_ERROR_FAILED;
+	if( rmdir( path ) == 0 )
+		return DIR_ERROR_OK;
+	printf("failed to remove %s\n", path);
+	return DIR_ERROR_FAILED;
 }
 
 dir_error dir_mktree( const char* path )
