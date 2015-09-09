@@ -39,6 +39,8 @@ function get_platform()
     if platform == nil then
         if family == "windows" then
             platform = "winx64"
+        elseif family == "osx" then
+            platform = "osx_x86_64"
         else
             platform = "linux_x86_64"
         end
@@ -95,15 +97,16 @@ function set_compiler( settings, config )
             settings.cc.flags:Add( "-O2" )
         end
     end
+    return compiler
 end
 
 config   = get_config()
 platform = get_platform()
 settings = get_base_settings()
-set_compiler( settings, config )
+compiler = set_compiler( settings, config )
 TableLock( settings )
 
-local output_path = PathJoin( BUILD_PATH, PathJoin( platform, config ) )
+local output_path = PathJoin( BUILD_PATH, PathJoin( PathJoin( platform, compiler ), config ) )
 local output_func = function(settings, path) return PathJoin(output_path, PathFilename(PathBase(path)) .. settings.config_ext) end
 settings.cc.Output = output_func
 settings.lib.Output = output_func
