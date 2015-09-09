@@ -35,17 +35,19 @@ function get_config()
 end
 
 function get_platform()
-    local platform = ScriptArgs["platform"]
-    if platform == nil then
+    local p = ScriptArgs["platform"]
+    if p == nil then
         if family == "windows" then
-            platform = "winx64"
-        elseif family == "osx" then
-            platform = "osx_x86_64"
-        else
-            platform = "linux_x86_64"
+            p = "winx64"
+        elseif family == "unix" then
+            if platform == "macosx" then
+                p = "osx_x86_64"
+            elseif platform == "linux" then
+                p = "linux_x86_64"
+            end
         end
     end
-    return platform
+    return p
 end
 
 function get_base_settings()

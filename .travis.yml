@@ -3,6 +3,13 @@ os:
   - linux
   - osx
 
+sudo: false
+
+env:
+  matrix:
+   - DIRUTIL_CONFIG=debug
+   - DIRUTIL_CONFIG=release
+
 compiler:
   - gcc
   - clang
@@ -15,6 +22,4 @@ install:
 
 script:
   - rm -rf local/apa
-  - bam/bam compiler=$CC config=debug -r sc test
-  - rm -rf local/apa
-  - bam/bam compiler=$CC config=release -r sc test
+  - bam/bam compiler=$CC config=$DIRUTIL_CONFIG -r sc test
