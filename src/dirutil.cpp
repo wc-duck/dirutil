@@ -235,3 +235,181 @@ dir_error dir_mktree( const char* path )
 	}
 	return DIR_ERROR_FAILED;
 }
+
+static int dir_glob_match_range( const char* range_start, const char* range_end, char match_char )
+{
+	int match_return = 1;
+	if( *range_start == '!' )
+	{
+		match_return = 0;
+		++range_start;
+	}
+
+	while( range_start != range_end + 1 )
+	{
+		if( range_start[1] == '-' )
+		{
+			if( range_start[0] <= match_char && match_char <= range_start[2] )
+				return match_return;
+			range_start += 3;
+		}
+		else
+		{
+			if( *range_start == match_char )
+				return match_return;
+			++range_start;
+		}
+	}
+
+	return !match_return;
+}
+
+static int dir_glob_match_groups( const char* group_start, const char* group_end, const char* match_this )
+{
+	// ... comma separated ...
+	const char* item_start = group_start;
+	while( item_start < group_end )
+	{
+		const char* item_end = item_start;
+		while( *item_end != ',' && item_end != group_end + 1 )
+			++item_end;
+
+		size_t item_len = item_end - item_start;
+		if( strncmp( match_this, item_start, item_len ) == 0 )
+			return (int)item_len;
+
+		item_start = item_end + 1;
+	}
+	return -1;
+}
+
+#include <stdio.h>
+
+static dir_glob_result dir_glob_match( const char* glob_pattern, const char* glob_end, const char* path )
+{
+	const char* unverified = path;
+
+	while( glob_pattern != glob_end )
+	{
+		switch( *glob_pattern )
+		{
+			case '\0':
+				return DIR_GLOB_NO_MATCH;
+			case '*':
+			{
+				switch( glob_pattern[1] )
+				{
+					case '\0':
+					{
+						// try to find a path-separator in unverified since a pattern without a path-separator should only match files.
+						if( strchr( unverified, '/' ) )
+							return DIR_GLOB_NO_MATCH; // should match dirs...
+						return DIR_GLOB_MATCH;
+					}
+
+					case '*':
+					{
+						if( glob_pattern[2] != '/' )
+							return DIR_GLOB_INVALID_PATTERN; // invalid?
+
+						for( const char* sub_search = unverified - 1;
+							 sub_search;
+							 sub_search = strchr( sub_search + 1, '/' ) )
+						{
+							++sub_search;
+							dir_glob_result res = dir_glob_match( glob_pattern + 3, glob_end, sub_search );
+							if( res != DIR_GLOB_NO_MATCH )
+								return res;
+						}
+						return DIR_GLOB_NO_MATCH;
+					}
+
+					default:
+					{
+						// search in unverified for char
+						const char* next = unverified;
+						while( *next && ( *next != glob_pattern[1] ) && ( *next != '/' ) )
+							++next;
+
+						switch( *next )
+						{
+							case '\0':
+								return DIR_GLOB_NO_MATCH; // failed, could not find char after *
+							case '/':
+								if( glob_pattern[1] == '/' )
+								{
+									unverified = next + 1;
+									glob_pattern += 2;
+								}
+								else
+									return DIR_GLOB_NO_MATCH;
+								break;
+							default:
+								unverified = next;
+								++glob_pattern;
+								break;
+						}
+					}
+					break;
+
+				}
+			}
+			break;
+			case '?':
+			{
+				if( *unverified == '/' )
+					return DIR_GLOB_NO_MATCH;
+				++unverified;
+				++glob_pattern;
+			}
+			break;
+
+			case '[':
+			{
+				const char* range_start = glob_pattern + 1;
+				const char* range_end   = strchr( range_start, ']' );
+				if( range_end == 0x0 )
+					return DIR_GLOB_INVALID_PATTERN; // invalid
+
+				if( !dir_glob_match_range( range_start, range_end - 1, *unverified ) )
+					return DIR_GLOB_NO_MATCH;
+
+				glob_pattern = range_end + 1;
+				++unverified;
+			}
+			break;
+
+			case '{':
+			{
+				const char* group_start = glob_pattern + 1;
+				const char* group_end   = group_start;
+				while( group_end != glob_end && *group_end != '}' )
+					++group_end;
+
+				int match_len = dir_glob_match_groups( group_start, group_end - 1, unverified );
+				if( match_len < 0 )
+					return DIR_GLOB_NO_MATCH;
+
+				glob_pattern = group_end + 1;
+				unverified += match_len;
+			}
+			break;
+
+			default:
+			{
+				if( *unverified != *glob_pattern )
+					return DIR_GLOB_NO_MATCH;
+				++unverified;
+				++glob_pattern;
+			}
+			break;
+		}
+	}
+
+	return *unverified == '\0' ? DIR_GLOB_MATCH : DIR_GLOB_NO_MATCH;
+}
+
+dir_glob_result dir_glob_match( const char* glob_pattern, const char* path )
+{
+	return dir_glob_match( glob_pattern, glob_pattern + strlen(glob_pattern), path );
+}

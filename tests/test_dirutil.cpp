@@ -124,6 +124,149 @@ TEST create_remove_tree_with_files()
 	return 0;
 }
 
+TEST dir_glob_match_simple()
+{
+	// TODO: split in multiple tests
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "apa.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "bpa.txt", "apa.txt" ) );
+
+	return 0;
+}
+
+TEST dir_glob_match_star()
+{
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "*.txt",   "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "*.txt",   "apa.who" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a*a.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a*a.txt", "bpa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a*a.txt", "apb.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a*.txt",  "apb.txtb" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "*.h",     "src/bloo.cpp" ) );
+
+	return 0;
+}
+
+TEST dir_glob_match_simple_dir()
+{
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "p1/*.txt", "p1/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p1/*.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p1/*.txt", "p1" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p1/*.txt", "p" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "p*",  "p1" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p*",  "p1/" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p*",  "p1/apa.txt" ) ); // should not match across directories.
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "p*/", "p1/" ) );
+
+	return 0;
+}
+
+TEST dir_glob_match_single_char()
+{
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a?a", "apa" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a?a", "apb" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a?a/apa", "apa/apa" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a?a/apa", "apb/apa" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a?a/", "apa/" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a?a/", "apa" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a?/", "ap/" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a?/", "ap" ) );
+
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "ap?a", "ap/a" ) ); // should not match dir-separator.
+
+	return 0;
+}
+
+TEST dir_glob_match_multi_dir()
+{
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/*.txt",   "src/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/*.cpp",   "./src/apa.cpp" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/apa.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/apa.txt", "a/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/apa.txt", "a/b/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "**/apa.txt", "a/b/c/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "**/apa.txt", "a/apa.taxt" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a/**/apa.txt", "a/b/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a/**/apa.txt", "b/a/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a/**/apa.txt", "a/b/c/apa.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a/**/b/**/apa.txt", "a/b/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a/**/b/**/apa.txt", "a/c/d/b/a/apa.txt" ) );
+	return 0;
+}
+
+TEST dir_glob_match_range()
+{
+	// TODO: support [0-9] etc
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[pb]a.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[pb]a.txt", "aba.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[pb]a.txt", "aca.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[pb]a.txt", "apba.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[a-d]a.txt", "aba.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[a-d]a.txt", "aca.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[a-d]a.txt", "ada.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[a-d]a.txt", "afa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[a-d]a.txt", "aBa.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[0-9]a.txt", "a0a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[0-9]a.txt", "a3a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[0-9]a.txt", "a9a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[0-9]a.txt", "apa.txt" ) );
+	return 0;
+}
+
+TEST dir_glob_match_negative_range()
+{
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!pb]a.txt", "apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!pb]a.txt", "aba.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[!pb]a.txt", "aca.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!a-d]a.txt", "aba.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!a-d]a.txt", "aca.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!a-d]a.txt", "ada.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[!a-d]a.txt", "afa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[!a-d]a.txt", "aBa.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!0-9]a.txt", "a0a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!0-9]a.txt", "a3a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a[!0-9]a.txt", "a9a.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a[!0-9]a.txt", "apa.txt" ) );
+	return 0;
+}
+
+TEST dir_glob_match_ecaped_chars()
+{
+	return 0;
+}
+
+TEST dir_glob_match_brackets()
+{
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a{.f1,.f2}", "a.f1" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a{.f1,.f2}", "a.f2" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a{.f1,.f2}", "a.f3" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "{a1,a2}.txt", "a1.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "{a1,a2}.txt", "a2.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "{a1,a2}.txt", "a3.txt" ) );
+
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a{a1,a2}.txt", "aa1.txt" ) );
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a{a1,a2}.txt", "aa2.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a{a1,a2}.txt", "ba1.txt" ) );
+
+	// TODO: test sub *,?,[]
+	return 0;
+}
+
+TEST dir_glob_match_invalid_pattern()
+{
+	// TODO: add tests for and handle invalid patterns!
+	return 0;
+}
 
 GREATEST_SUITE( dirutil )
 {
@@ -132,11 +275,26 @@ GREATEST_SUITE( dirutil )
 	RUN_TEST( create_remove_tree_with_files );
 }
 
+GREATEST_SUITE( glob )
+{
+	RUN_TEST( dir_glob_match_simple );
+	RUN_TEST( dir_glob_match_star );
+	RUN_TEST( dir_glob_match_simple_dir );
+	RUN_TEST( dir_glob_match_single_char );
+	RUN_TEST( dir_glob_match_multi_dir );
+	RUN_TEST( dir_glob_match_range );
+	RUN_TEST( dir_glob_match_negative_range );
+	RUN_TEST( dir_glob_match_ecaped_chars );
+	RUN_TEST( dir_glob_match_brackets );
+	RUN_TEST( dir_glob_match_invalid_pattern );
+}
+
 GREATEST_MAIN_DEFS();
 
 int main( int argc, char **argv )
 {
     GREATEST_MAIN_BEGIN();
     RUN_SUITE( dirutil );
+    RUN_SUITE( glob );
     GREATEST_MAIN_END();
 }

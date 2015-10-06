@@ -55,6 +55,13 @@ enum dir_item_type
 	DIR_ITEM_UNHANDLED
 };
 
+enum dir_glob_result
+{
+	DIR_GLOB_MATCH,
+	DIR_GLOB_NO_MATCH,
+	DIR_GLOB_INVALID_PATTERN
+};
+
 
 /**
  * Callback called for each item with dir_walk.
@@ -92,6 +99,17 @@ dir_error dir_mktree( const char* path );
  * @param userdata passed to callback.
  */
 dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata );
+
+/**
+ * Matches an unix style glob-pattern, with added support for ** from ant, vs a path.
+ *
+ * For more information see http://man7.org/linux/man-pages/man7/glob.7.html
+ *
+ * @param glob_pattern is an glob pattern.
+ * @param path path to match.
+ * @return DIR_GLOB_MATCH on match, DIR_GLOB_NO_MATCH on mismatch, otherwise error-code.
+ */
+dir_glob_result dir_glob_match( const char* glob_pattern, const char* path );
 
 #ifdef __cplusplus
 }
