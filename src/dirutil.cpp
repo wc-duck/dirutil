@@ -274,7 +274,7 @@ static int dir_glob_match_groups( const char* group_start, const char* group_end
 		while( *item_end != ',' && item_end != group_end + 1 )
 			++item_end;
 
-		size_t item_len = item_end - item_start;
+		size_t item_len = (size_t)(item_end - item_start);
 		if( strncmp( match_this, item_start, item_len ) == 0 )
 			return (int)item_len;
 
