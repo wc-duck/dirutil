@@ -103,6 +103,21 @@ dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback call
 /**
  * Matches an unix style glob-pattern, with added support for ** from ant, vs a path.
  *
+ * Rules:
+ * ?  - match one char except dir-separator.
+ * *  - match any amount of chars ( including the empty string ) except dir-separator.
+ * ** - match zero or more path-segments.
+ * [] - match one of the chars the brackets except dir-separator, - can be used to specify a range.
+ *      example:
+ *      	[abx], match an a, b or x ( lower case )
+ *      	[0-9], match any of the chars 0,1,2,3,4,5,6,7,8,9
+ * {} - match any of the ,-separated strings within the brackets.
+ *      example:
+ *          {.txt,.doc}
+ *
+ * @note {} currently do not support sub-expressions of the other types. This could be added if there
+ *       is any need for it.
+ *
  * For more information see http://man7.org/linux/man-pages/man7/glob.7.html
  *
  * @param glob_pattern is an glob pattern.
