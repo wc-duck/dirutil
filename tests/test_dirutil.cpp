@@ -159,6 +159,9 @@ TEST dir_glob_match_simple_dir()
 	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "p*",  "p1/apa.txt" ) ); // should not match across directories.
 	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "p*/", "p1/" ) );
 
+	ASSERT_EQ( DIR_GLOB_MATCH,    dir_glob_match( "a/*/b/*", "a/c/b/apa.txt" ) );
+	ASSERT_EQ( DIR_GLOB_NO_MATCH, dir_glob_match( "a/*/b/*", "a/c/b/b/apa.txt" ) );
+
 	return 0;
 }
 
