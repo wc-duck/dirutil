@@ -40,7 +40,7 @@
 
 #if defined( _WIN32 )
 
-static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, WIN32_FIND_DATA* ffd, dir_walk_flags flags, dir_walk_callback callback, void* userdata )
+static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, WIN32_FIND_DATA* ffd, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
 	if( path_buffer_size < 3 )
 		return DIR_ERROR_PATH_TO_DEEP;
@@ -89,7 +89,7 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 	return DIR_ERROR_OK;
 }
 
-dir_error dir_walk( const char* path, dir_walk_flags flags, dir_walk_callback callback, void* userdata )
+dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
 	char path_buffer[4096];
 	strncpy( path_buffer, path, sizeof( path_buffer ) );
