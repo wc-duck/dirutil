@@ -220,6 +220,12 @@ dir_error dir_mktree( const char* path )
 	strncpy( path_buffer, path, sizeof( path_buffer ) );
 
 	char* beg = path_buffer;
+
+	// if path is absolute, we need to start trying to create dirs from the second '/',
+	// otherwise we would try to create the dir ""
+	if( *beg == '/' )
+		++beg;
+
 	while( true )
 	{
 		char* sep = strchr( beg, '/' );
