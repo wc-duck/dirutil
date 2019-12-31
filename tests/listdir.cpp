@@ -27,10 +27,15 @@
 #include <dirutil/dirutil.h>
 #include <stdio.h>
 
-int dir_walk_print( const char* path, dir_item_type type, void* pattern )
+int dir_walk_print( const dir_walk_item* item )
 {
-	if( pattern == 0x0 || ( dir_glob_match( (const char*)pattern, path ) == DIR_GLOB_MATCH ) )
-		printf( "%s %s\n", type == DIR_ITEM_FILE ? "FILE:" : "DIR: ", path );
+   const char* pattern = (const char*)item->userdata;
+	if( pattern == 0x0 || ( dir_glob_match( pattern, item->path ) == DIR_GLOB_MATCH ) )
+   {
+      printf("%s %s\n",          item->type == DIR_ITEM_FILE ? "FILE:" : "DIR: ", item->path);
+      printf("\troot:     %s\n", item->root);
+      printf("\trelative: %s\n", item->relative);
+   }
 	return 0;
 }
 

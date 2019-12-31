@@ -44,7 +44,7 @@ enum dir_error
 
 enum dir_walk_flags
 {
-	DIR_WALK_NO_FLAGS = 0,
+	DIR_WALK_NO_FLAGS    = 0,
 	DIR_WALK_DEPTH_FIRST = 1 << 1
 };
 
@@ -62,6 +62,36 @@ enum dir_glob_result
 	DIR_GLOB_INVALID_PATTERN
 };
 
+/**
+ * Item passed to callback used with dir_walk()
+ */
+struct dir_walk_item
+{
+   /**
+    * full path to file, normalized to always use '/'.
+    */
+   const char* path;
+
+   /**
+    * path relative 'root' passed to dir_walk().
+    */
+   const char* relative;
+
+   /**
+    * path passed to dir_walk(), as passed by user.
+    */
+   const char* root;
+
+   /**
+    * item type!
+    */
+   dir_item_type type;
+
+   /**
+    * userdata passed to dir_walk().
+    */
+   void* userdata;
+};
 
 /**
  * Callback called for each item with dir_walk.
@@ -69,7 +99,7 @@ enum dir_glob_result
  * @param type item type, file or dir.
  * @param userdata passed to dir_walk.
  */
-typedef int ( *dir_walk_callback )( const char* path, dir_item_type type, void* userdata );
+typedef int ( *dir_walk_callback )( const dir_walk_item* item );
 
 /**
  * Create directory.
@@ -93,12 +123,12 @@ dir_error dir_mktree( const char* path );
 
 /**
  * Call callback once for each item in the directory and, depending on flags, it's sub-directories.
- * @param path to walk.
+ * @param root path to walk.
  * @param flags controlling the walk.
  * @param callback called for each item in walk.
  * @param userdata passed to callback.
  */
-dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata );
+dir_error dir_walk( const char* root, unsigned int flags, dir_walk_callback callback, void* userdata );
 
 /**
  * Matches an unix style glob-pattern, with added support for ** from ant, vs a path.

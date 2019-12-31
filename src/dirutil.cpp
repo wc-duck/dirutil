@@ -100,7 +100,14 @@ dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback call
 
 #else
 
-static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, unsigned int flags, dir_walk_callback callback, void* userdata )
+static dir_error dir_walk_impl( const char*       root,
+								size_t            root_len,
+								char*             path_buffer,
+								size_t            path_len,
+								size_t            path_buffer_size,
+								unsigned int      flags,
+								dir_walk_callback callback,
+								void*             userdata )
 {
 	DIR* dir = opendir( path_buffer );
 	if( dir == 0x0 )
@@ -132,21 +139,32 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 			is_dir = S_ISDIR( s.st_mode );
 		}
 
+		dir_walk_item item;
+		item.path     = path_buffer;
+		item.relative = path_buffer + root_len + 1;
+		item.root     = root;
+		item.type     = DIR_ITEM_UNHANDLED;
+		item.userdata = userdata;
+
 		if( is_dir )
 		{
+			item.type = DIR_ITEM_DIR;
 			if( flags & DIR_WALK_DEPTH_FIRST )
 			{
-				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
-				callback( path_buffer, DIR_ITEM_DIR, userdata );
+				dir_walk_impl( root, root_len, path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
+				callback( &item );
 			}
 			else
 			{
-				callback( path_buffer, DIR_ITEM_DIR, userdata );
-				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
+				callback( &item );
+				dir_walk_impl( root, root_len, path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
 			}
 		}
 		else
-			callback( path_buffer, DIR_ITEM_FILE, userdata );
+		{
+			item.type = DIR_ITEM_FILE;
+			callback( &item );
+		}
 
 		path_buffer[path_len] = '\0';
 	}
@@ -159,7 +177,15 @@ dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback call
 	char path_buffer[4096];
 	strncpy( path_buffer, path, sizeof( path_buffer ) );
 	size_t path_len = strlen( path_buffer );
-	return dir_walk_impl( path_buffer, path_len, sizeof( path_buffer ) - path_len, flags, callback, userdata );
+
+	// normalize input path to only strip of trailing / if there is one.
+	if(path_buffer[path_len-1] == '/')
+	{
+		--path_len;
+		path_buffer[path_len] = '\0';
+	}
+
+	return dir_walk_impl( path, path_len, path_buffer, path_len, sizeof( path_buffer ) - path_len, flags, callback, userdata );
 }
 
 #endif
@@ -180,27 +206,27 @@ dir_error dir_create( const char* path )
 	return DIR_ERROR_FAILED;
 }
 
-static int dir_walk_rmitem( const char* path, dir_item_type type, void* userdata )
+static int dir_walk_rmitem( const dir_walk_item* item )
 {
-	switch( type )
+	dir_error* err = (dir_error*)item->userdata;
+	switch( item->type )
 	{
 		case DIR_ITEM_FILE:
 			#if defined( _WIN32 )
 				if( !DeleteFile( path ) )
-					*((dir_error*)userdata) = DIR_ERROR_FAILED;
 			#else
-				if( unlink( path ) != 0 )
-					*((dir_error*)userdata) = DIR_ERROR_FAILED;
+				if( unlink( item->path ) != 0 )
 			#endif
+					*err = DIR_ERROR_FAILED;
 			break;
 		case DIR_ITEM_DIR:
-			if( rmdir( path ) != 0 )
-				*((dir_error*)userdata) = DIR_ERROR_FAILED;
+			if( rmdir( item->path ) != 0 )
+				*err = DIR_ERROR_FAILED;
 			break;
 		default:
 			break;
 	}
-	return *((dir_error*)userdata) == DIR_ERROR_OK ? 0 : 1;
+	return *err == DIR_ERROR_OK ? 0 : 1;
 }
 
 dir_error dir_rmtree( const char* path )
