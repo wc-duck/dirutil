@@ -40,7 +40,15 @@
 
 #if defined( _WIN32 )
 
-static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_buffer_size, WIN32_FIND_DATA* ffd, unsigned int flags, dir_walk_callback callback, void* userdata )
+static dir_error dir_walk_impl( const char*       root,
+								size_t            root_len,
+								char*             path_buffer,
+								size_t            path_len,
+								size_t            path_buffer_size,
+								WIN32_FIND_DATA*  ffd,
+								unsigned int      flags,
+								dir_walk_callback callback,
+								void*             userdata )
 {
 	if( path_buffer_size < 3 )
 		return DIR_ERROR_PATH_TO_DEEP;
@@ -66,36 +74,39 @@ static dir_error dir_walk_impl( char* path_buffer, size_t path_len, size_t path_
 			return DIR_ERROR_PATH_TO_DEEP;
 		path_buffer[path_len] = '/';
 		strcpy( &path_buffer[path_len + 1], item_name );
+
+		dir_walk_item item;
+		item.path     = path_buffer;
+		item.relative = path_buffer + root_len + 1;
+		item.root     = root;
+		item.type     = DIR_ITEM_UNHANDLED;
+		item.userdata = userdata;
+
 		if( is_dir )
 		{
+			item.type = DIR_ITEM_DIR;
 			if( flags & DIR_WALK_DEPTH_FIRST )
 			{
 				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, ffd, flags, callback, userdata );
-				callback( path_buffer, DIR_ITEM_DIR, userdata );
+				callback( &item );
 			}
 			else
 			{
-				callback( path_buffer, DIR_ITEM_DIR, userdata );
+				callback( &item );
 				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, ffd, flags, callback, userdata );
 			}
 		}
 		else
-			callback( path_buffer, DIR_ITEM_FILE, userdata );
+		{
+			item.type = DIR_ITEM_FILE;
+			callback( &item );
+		}
 	}
 	while( FindNextFile( ffh, ffd ) != 0 );
 	path_buffer[path_len] = '\0';
 
 	FindClose( ffh );
 	return DIR_ERROR_OK;
-}
-
-dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata )
-{
-	char path_buffer[4096];
-	strncpy( path_buffer, path, sizeof( path_buffer ) );
-	size_t path_len = strlen( path_buffer );
-	WIN32_FIND_DATA ffd;
-	return dir_walk_impl( path_buffer, path_len, sizeof( path_buffer ) - path_len, &ffd, flags, callback, userdata );
 }
 
 #else
@@ -171,6 +182,7 @@ static dir_error dir_walk_impl( const char*       root,
 	closedir( dir );
 	return DIR_ERROR_OK;
 }
+#endif
 
 dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
@@ -185,10 +197,13 @@ dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback call
 		path_buffer[path_len] = '\0';
 	}
 
+#if defined( _WIN32 )
+	WIN32_FIND_DATA ffd;
+	return dir_walk_impl( path, path_len, path_buffer, path_len, sizeof( path_buffer ) - path_len, &ffd, flags, callback, userdata );
+#else
 	return dir_walk_impl( path, path_len, path_buffer, path_len, sizeof( path_buffer ) - path_len, flags, callback, userdata );
-}
-
 #endif
+}
 
 dir_error dir_create( const char* path )
 {
