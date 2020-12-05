@@ -88,13 +88,13 @@ function set_compiler( settings, config )
         end
     elseif compiler == "gcc" then
         SetDriversGCC( settings )
-        settings.cc.flags:Add( "-Wconversion", "-Wextra", "-Wall", "-Werror", "-Wstrict-aliasing=2" )
+        settings.cc.flags:Add( "-Wconversion", "-Wextra", "-Wall", "-Werror", "-Wstrict-aliasing=2", "-std=c++11" )
         if config == "release" then
             settings.cc.flags:Add( "-O2" )
         end
     elseif compiler == "clang" then
         SetDriversClang( settings )
-        settings.cc.flags:Add( "-Wconversion", "-Wextra", "-Wall", "-Werror", "-Wstrict-aliasing=2" )
+        settings.cc.flags:Add( "-Wconversion", "-Wextra", "-Wall", "-Werror", "-Wstrict-aliasing=2", "-std=c++11" )
         if config == "release" then
             settings.cc.flags:Add( "-O2" )
         end
@@ -125,10 +125,13 @@ if ScriptArgs["test"]     then test_args = test_args .. " -t " .. ScriptArgs["te
 if ScriptArgs["suite"]    then test_args = test_args .. " -s " .. ScriptArgs["suite"] end
 
 if family == "windows" then
-        AddJob( "test",  "unittest",  string.gsub( tests, "/", "\\" ) .. test_args, tests, tests )
+    AddJob( "test",      "unittest",  string.gsub( tests, "/", "\\" ) .. test_args, tests, tests )
+    SkipOutputVerification("test")
 else
-        AddJob( "test",     "unittest",  tests .. test_args, tests, tests )
-        AddJob( "valgrind", "valgrind",  "valgrind -v --leak-check=full --track-origins=yes " .. tests .. test_args, tests, tests )
+    AddJob( "test",     "unittest",  tests .. test_args, tests, tests )
+    AddJob( "valgrind", "valgrind",  "valgrind -v --leak-check=full --track-origins=yes " .. tests .. test_args, tests, tests )
+    SkipOutputVerification("test")
+    SkipOutputVerification("valgrind")
 end
 
 PseudoTarget( "all", tests, listdir )
