@@ -116,6 +116,16 @@ static dir_error dir_walk_impl( size_t            root_len,
 		if( path_buffer_size < item_len + 1 )
 			return DIR_ERROR_PATH_TO_DEEP;
 
+		dir_item_type item_type = dir_walk_item_is_dir(path_buffer, ent) ? DIR_ITEM_DIR : DIR_ITEM_FILE;
+
+		if(item_name[0] == '.')
+		{
+			if(item_type == DIR_ITEM_DIR  && (flags & DIR_WALK_IGNORE_DOT_DIRS) > 0)
+				continue;
+			if(item_type == DIR_ITEM_FILE && (flags & DIR_WALK_IGNORE_DOT_FILES) > 0)
+				continue;
+		}
+
 		// TODO: check for overflow!
 		path_buffer[path_len] = '/';
 		strcpy( &path_buffer[path_len + 1], item_name );
@@ -124,7 +134,7 @@ static dir_error dir_walk_impl( size_t            root_len,
 		item.path     = path_buffer;
 		item.relative = path_buffer + root_len + 1;
 		item.name     = item_name;
-		item.type     = dir_walk_item_is_dir(path_buffer, ent) ? DIR_ITEM_DIR : DIR_ITEM_FILE;
+		item.type     = item_type;
 		item.userdata = userdata;
 
 		if( item.type == DIR_ITEM_DIR )

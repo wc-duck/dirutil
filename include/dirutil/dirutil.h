@@ -44,8 +44,24 @@ enum dir_error
 
 enum dir_walk_flags
 {
-	DIR_WALK_NO_FLAGS    = 0,
-	DIR_WALK_DEPTH_FIRST = 1 << 1
+	DIR_WALK_NO_FLAGS         = 0,
+	DIR_WALK_DEPTH_FIRST      = 1 << 1,
+
+   /**
+    * While walking a directory, ignore files starting with a '.' such as '.secret'
+    */
+   DIR_WALK_IGNORE_DOT_FILES = 1 << 2,
+
+   /**
+    * While walking a directory, ignore directories starting with a '.' such as '.git/'
+    */
+   DIR_WALK_IGNORE_DOT_DIRS  = 1 << 3,
+
+   /**
+    * While walking a directory, ignore files/dirs starting with a '.' such as '.secret'
+    */
+   DIR_WALK_IGNORE_DOT_ITEMS = DIR_WALK_IGNORE_DOT_FILES | 
+                               DIR_WALK_IGNORE_DOT_DIRS
 };
 
 enum dir_item_type

@@ -157,6 +157,110 @@ TEST item_correct()
 	return 0;
 }
 
+TEST ignore_dot_files()
+{
+	dir_error err;
+	err = dir_mktree( "local/apa/.bepa");
+	err = dir_mktree( "local/apa/cepa");
+	filedump( "local/apa/.bepa/f1.txt",  (uint8_t*)"abc", 4 );
+	filedump( "local/apa/.bepa/.f2.txt", (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/f2.txt",   (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/.f2.txt",  (uint8_t*)"abc", 4 );
+
+	bool found_f1    = false;
+	bool found_f2    = false;
+	bool found_other = false;
+
+	dir_walk("local/apa/", DIR_WALK_IGNORE_DOT_FILES, [&found_f1, &found_f2, &found_other](const dir_walk_item* item){
+		if(item->type == DIR_ITEM_FILE)
+		{
+			if(strend(".bepa/f1.txt", item->path))
+				found_f1 = true;
+			else if(strend("cepa/f2.txt", item->path))
+				found_f2 = true;
+			else
+				found_other = true;
+		}
+		return 1;
+	});
+
+	ASSERT(found_f1);
+	ASSERT(found_f2);
+	ASSERT_FALSE(found_other);
+
+	err = dir_rmtree( "local/apa/" );
+	ASSERT_EQ( DIR_ERROR_OK, err );
+	return 0;
+}
+
+TEST ignore_dot_dirs()
+{
+	dir_error err;
+	err = dir_mktree( "local/apa/.bepa");
+	err = dir_mktree( "local/apa/cepa");
+	filedump( "local/apa/.bepa/f1.txt",  (uint8_t*)"abc", 4 );
+	filedump( "local/apa/.bepa/.f2.txt", (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/f2.txt",   (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/.f2.txt",  (uint8_t*)"abc", 4 );
+
+	bool found_f1    = false;
+	bool found_f2    = false;
+	bool found_other = false;
+
+	dir_walk("local/apa/", DIR_WALK_IGNORE_DOT_DIRS, [&found_f1, &found_f2, &found_other](const dir_walk_item* item){
+		if(item->type == DIR_ITEM_FILE)
+		{
+			if(strend("cepa/f2.txt", item->path))
+				found_f1 = true;
+			else if(strend("cepa/.f2.txt", item->path))
+				found_f2 = true;
+			else
+				found_other = true;
+		}
+		return 1;
+	});
+
+	ASSERT(found_f1);
+	ASSERT(found_f2);
+	ASSERT_FALSE(found_other);
+
+	err = dir_rmtree( "local/apa/" );
+	ASSERT_EQ( DIR_ERROR_OK, err );
+	return 0;
+}
+
+TEST ignore_dot_items()
+{
+	dir_error err;
+	err = dir_mktree( "local/apa/.bepa");
+	err = dir_mktree( "local/apa/cepa");
+	filedump( "local/apa/.bepa/f1.txt",  (uint8_t*)"abc", 4 );
+	filedump( "local/apa/.bepa/.f2.txt", (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/f2.txt",   (uint8_t*)"abc", 4 );
+	filedump( "local/apa/cepa/.f2.txt",  (uint8_t*)"abc", 4 );
+
+	bool found_f1    = false;
+	bool found_other = false;
+
+	dir_walk("local/apa/", DIR_WALK_IGNORE_DOT_ITEMS, [&found_f1, &found_other](const dir_walk_item* item){
+		if(item->type == DIR_ITEM_FILE)
+		{
+			if(strend("cepa/f2.txt", item->path))
+				found_f1 = true;
+			else
+				found_other = true;
+		}
+		return 1;
+	});
+
+	ASSERT(found_f1);
+	ASSERT_FALSE(found_other);
+
+	err = dir_rmtree( "local/apa/" );
+	ASSERT_EQ( DIR_ERROR_OK, err );
+	return 0;
+}
+
 TEST create_remove_tree_with_files()
 {
 	ASSERT( path_exists( "local" ) );
@@ -335,6 +439,9 @@ GREATEST_SUITE( dirutil )
 	RUN_TEST( create_remove_tree_slash );
 	RUN_TEST( create_remove_tree_with_files );
 	RUN_TEST( item_correct );
+	RUN_TEST( ignore_dot_files );
+	RUN_TEST( ignore_dot_dirs );
+	RUN_TEST( ignore_dot_items );
 }
 
 GREATEST_SUITE( glob )
