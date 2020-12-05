@@ -160,7 +160,7 @@ dir_glob_result dir_glob_match( const char* glob_pattern, const char* path );
 }
 #endif  // __cplusplus
 
-#if __cplusplus >= 201103L
+#if __cplusplus >= 201103L || ( defined(_MSC_VER) && (_MSC_VER >= 1600) )
 
 /**
  * Call functor once for each item in the directory and, depending on flags, it's sub-directories.
