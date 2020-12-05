@@ -39,17 +39,52 @@
 #endif
 
 #if defined( _WIN32 )
+static const char* dir_walk_item_name( WIN32_FIND_DATA* ent )
+{
+	return ent->cFileName;
+}
 
-static dir_error dir_walk_impl( const char*       root,
-								size_t            root_len,
+static bool dir_walk_item_is_dir( const char* /*path*/, WIN32_FIND_DATA* ent )
+{
+	return ent->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
+}
+#else
+static const char* dir_walk_item_name( struct dirent* ent )
+{
+	return ent->d_name;
+}
+
+static bool dir_walk_item_is_dir( const char* path, struct dirent* ent )
+{
+	switch(ent->d_type)
+	{
+		case DT_DIR:
+			return true;
+		case DT_UNKNOWN:
+		{
+			struct stat s;
+			if( stat( path, &s ) != 0 )
+				return false;
+			return S_ISDIR( s.st_mode );
+		}
+		default:
+			return false;
+	}
+}
+#endif
+
+static dir_error dir_walk_impl( size_t            root_len,
 								char*             path_buffer,
 								size_t            path_len,
 								size_t            path_buffer_size,
-								WIN32_FIND_DATA*  ffd,
+							#if defined( _WIN32 )
+								WIN32_FIND_DATA*  ent,
+							#endif
 								unsigned int      flags,
 								dir_walk_callback callback,
 								void*             userdata )
 {
+#if defined( _WIN32 )
 	if( path_buffer_size < 3 )
 		return DIR_ERROR_PATH_TO_DEEP;
 
@@ -57,69 +92,13 @@ static dir_error dir_walk_impl( const char*       root,
 	path_buffer[path_len+1] = '*';
 	path_buffer[path_len+2] = '\0';
 
-	HANDLE ffh = FindFirstFile( path_buffer, ffd );
+	HANDLE ffh = FindFirstFile( path_buffer, ent );
 	if( ffh == INVALID_HANDLE_VALUE )
 		return DIR_ERROR_PATH_DO_NOT_EXIST;
 
 	do
 	{
-		const char* item_name = ffd->cFileName;
-		bool is_dir = ffd->dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY;
-
-		// TODO: flag to ignore dot-files?
-		if( strcmp( item_name, "." ) == 0 || strcmp( item_name, ".." ) == 0 )
-			continue;
-		size_t item_len = strlen( item_name );
-		if( path_buffer_size < item_len + 1 )
-			return DIR_ERROR_PATH_TO_DEEP;
-		path_buffer[path_len] = '/';
-		strcpy( &path_buffer[path_len + 1], item_name );
-
-		dir_walk_item item;
-		item.path     = path_buffer;
-		item.relative = path_buffer + root_len + 1;
-		item.root     = root;
-		item.type     = DIR_ITEM_UNHANDLED;
-		item.userdata = userdata;
-
-		if( is_dir )
-		{
-			item.type = DIR_ITEM_DIR;
-			if( flags & DIR_WALK_DEPTH_FIRST )
-			{
-				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, ffd, flags, callback, userdata );
-				callback( &item );
-			}
-			else
-			{
-				callback( &item );
-				dir_walk_impl( path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, ffd, flags, callback, userdata );
-			}
-		}
-		else
-		{
-			item.type = DIR_ITEM_FILE;
-			callback( &item );
-		}
-	}
-	while( FindNextFile( ffh, ffd ) != 0 );
-	path_buffer[path_len] = '\0';
-
-	FindClose( ffh );
-	return DIR_ERROR_OK;
-}
-
 #else
-
-static dir_error dir_walk_impl( const char*       root,
-								size_t            root_len,
-								char*             path_buffer,
-								size_t            path_len,
-								size_t            path_buffer_size,
-								unsigned int      flags,
-								dir_walk_callback callback,
-								void*             userdata )
-{
 	DIR* dir = opendir( path_buffer );
 	if( dir == 0x0 )
 		return DIR_ERROR_PATH_DO_NOT_EXIST;
@@ -127,9 +106,9 @@ static dir_error dir_walk_impl( const char*       root,
 	struct dirent* ent;
 	while( ( ent = readdir( dir ) ) != 0x0 )
 	{
-		const char* item_name = ent->d_name;
+#endif
+		const char* item_name = dir_walk_item_name(ent);
 
-		// TODO: flag to ignore dot-files?
 		if( strcmp( item_name, "." ) == 0 || strcmp( item_name, ".." ) == 0 )
 			continue;
 
@@ -141,48 +120,47 @@ static dir_error dir_walk_impl( const char*       root,
 		path_buffer[path_len] = '/';
 		strcpy( &path_buffer[path_len + 1], item_name );
 
-		bool is_dir = ent->d_type == DT_DIR;
-		if( ent->d_type == DT_UNKNOWN )
-		{
-			struct stat s;
-			if( stat( path_buffer, &s ) != 0 )
-				return DIR_ERROR_FAILED;
-			is_dir = S_ISDIR( s.st_mode );
-		}
-
 		dir_walk_item item;
 		item.path     = path_buffer;
 		item.relative = path_buffer + root_len + 1;
-		item.root     = root;
-		item.type     = DIR_ITEM_UNHANDLED;
+		item.name     = item_name;
+		item.type     = dir_walk_item_is_dir(path_buffer, ent) ? DIR_ITEM_DIR : DIR_ITEM_FILE;
 		item.userdata = userdata;
 
-		if( is_dir )
+		if( item.type == DIR_ITEM_DIR )
 		{
-			item.type = DIR_ITEM_DIR;
-			if( flags & DIR_WALK_DEPTH_FIRST )
-			{
-				dir_walk_impl( root, root_len, path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
+			bool depth_first = (flags & DIR_WALK_DEPTH_FIRST) > 0;
+
+			if( !depth_first )
 				callback( &item );
-			}
-			else
-			{
+
+			dir_walk_impl( root_len,
+						   path_buffer,
+						   path_len + item_len + 1,
+						   path_buffer_size - item_len - 1, 
+						#if defined( _WIN32 )
+						   ent,
+						#endif
+						   flags,
+						   callback,
+						   userdata );
+
+			if( depth_first )
 				callback( &item );
-				dir_walk_impl( root, root_len, path_buffer, path_len + item_len + 1, path_buffer_size - item_len - 1, flags, callback, userdata );
-			}
 		}
 		else
-		{
-			item.type = DIR_ITEM_FILE;
 			callback( &item );
-		}
-
-		path_buffer[path_len] = '\0';
+#if defined( _WIN32 )
+	}
+	while( FindNextFile( ffh, ent ) != 0 );
+	FindClose( ffh );
+#else
 	}
 	closedir( dir );
+#endif
+	path_buffer[path_len] = '\0';
 	return DIR_ERROR_OK;
 }
-#endif
 
 dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback callback, void* userdata )
 {
@@ -199,10 +177,17 @@ dir_error dir_walk( const char* path, unsigned int flags, dir_walk_callback call
 
 #if defined( _WIN32 )
 	WIN32_FIND_DATA ffd;
-	return dir_walk_impl( path, path_len, path_buffer, path_len, sizeof( path_buffer ) - path_len, &ffd, flags, callback, userdata );
-#else
-	return dir_walk_impl( path, path_len, path_buffer, path_len, sizeof( path_buffer ) - path_len, flags, callback, userdata );
 #endif
+	return dir_walk_impl( path_len,
+						  path_buffer,
+						  path_len,
+						  sizeof( path_buffer ) - path_len, 
+#if defined( _WIN32 )
+						  &ffd,
+#endif
+						  flags,
+						  callback,
+						  userdata );
 }
 
 dir_error dir_create( const char* path )

@@ -68,19 +68,19 @@ enum dir_glob_result
 struct dir_walk_item
 {
    /**
-    * full path to file, normalized to always use '/'.
+    * path to file relative CWD, normalized to always use '/'.
     */
    const char* path;
 
    /**
-    * path relative 'root' passed to dir_walk().
+    * path relative 'root' passed to dir_walk(), normalized to always use '/'.
     */
    const char* relative;
 
    /**
-    * path passed to dir_walk(), as passed by user.
+    * item name, such as filename or dirname.
     */
-   const char* root;
+   const char* name;
 
    /**
     * item type!
@@ -160,5 +160,23 @@ dir_glob_result dir_glob_match( const char* glob_pattern, const char* path );
 }
 #endif  // __cplusplus
 
+#if __cplusplus >= 201103L
+
+/**
+ * Call functor once for each item in the directory and, depending on flags, it's sub-directories.
+ * @param root path to walk.
+ * @param flags controlling the walk.
+ * @param functor to call per item.
+ */
+template <typename FUNC>
+inline dir_error dir_walk( const char* root, unsigned int flags, FUNC&& functor)
+{
+   return dir_walk(root, flags, 
+      [](const dir_walk_item* item) {
+         return (*(FUNC*)item->userdata)(item);
+      }, &functor);
+}
+
+#endif
 
 #endif // FILE_DIR_H_INCLUDED

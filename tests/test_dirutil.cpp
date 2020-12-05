@@ -56,6 +56,20 @@ static bool filedump( const char* path, const uint8_t* data, size_t data_size )
 	return success;
 }
 
+static bool streq( const char* s1, const char* s2 )
+{
+	return strcmp(s1, s2) == 0;
+}
+
+static bool strend( const char* end, const char* str)
+{
+	size_t len = strlen( str );
+	size_t end_len = strlen( end );
+	if( len < end_len )
+		return false;
+	return streq( str + len - end_len, end );
+}
+
 TEST create_remove_tree()
 {
 	ASSERT( path_exists( "local" ) );
@@ -98,6 +112,50 @@ TEST create_remove_tree_slash()
 	return 0;
 }
 
+TEST item_correct()
+{
+	dir_error err;
+	err = dir_mktree( "local/apa/bepa/cepa");
+	ASSERT_EQ( DIR_ERROR_OK, err );
+	filedump( "local/apa/bepa/f1.txt",      (uint8_t*)"abc", 4 );
+	filedump( "local/apa/bepa/cepa/f2.txt", (uint8_t*)"abc", 4 );
+
+	bool found_f1 = false;
+	bool found_f2 = false;
+	bool found_other = false;
+
+	dir_walk("local/apa", DIR_WALK_NO_FLAGS, [&](const dir_walk_item* item)
+	{
+		if(item->type == DIR_ITEM_FILE)
+		{
+			if(strcmp(item->name, "f1.txt") == 0)
+			{
+				if( strend(item->path,     "local/apa/bepa/f1.txt") &&
+					streq (item->relative, "bepa/f1.txt"))
+					found_f1 = true;
+			}
+			else if(strcmp(item->name, "f2.txt") == 0)
+			{
+				if( strend(item->path,     "local/apa/bepa/cepa/f2.txt") &&
+					streq (item->relative, "bepa/cepa/f2.txt"))
+					found_f2 = true;
+			}
+			else
+			{
+				found_other = true;
+			}
+		}
+		return 1;
+	});
+
+	ASSERT(found_f1);
+	ASSERT(found_f2);
+	ASSERT_FALSE(found_other);
+
+	err = dir_rmtree( "local/apa/" );
+	ASSERT_EQ( DIR_ERROR_OK, err );
+	return 0;
+}
 
 TEST create_remove_tree_with_files()
 {
@@ -276,6 +334,7 @@ GREATEST_SUITE( dirutil )
 	RUN_TEST( create_remove_tree );
 	RUN_TEST( create_remove_tree_slash );
 	RUN_TEST( create_remove_tree_with_files );
+	RUN_TEST( item_correct );
 }
 
 GREATEST_SUITE( glob )
