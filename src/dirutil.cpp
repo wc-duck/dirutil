@@ -206,18 +206,23 @@ dir_error dir_create( const char* path )
 	return DIR_ERROR_FAILED;
 }
 
+static bool dir_walk_rmfile( const char* path )
+{
+#if defined( _WIN32 )
+	return DeleteFile( path );
+#else
+	return unlink( path ) == 0;
+#endif
+}
+
 static int dir_walk_rmitem( const dir_walk_item* item )
 {
 	dir_error* err = (dir_error*)item->userdata;
 	switch( item->type )
 	{
 		case DIR_ITEM_FILE:
-			#if defined( _WIN32 )
-				if( !DeleteFile( path ) )
-			#else
-				if( unlink( item->path ) != 0 )
-			#endif
-					*err = DIR_ERROR_FAILED;
+			if(!dir_walk_rmfile(item->path))
+				*err = DIR_ERROR_FAILED;
 			break;
 		case DIR_ITEM_DIR:
 			if( rmdir( item->path ) != 0 )
